@@ -1,8 +1,8 @@
 import Foundation
 import GRDB
 
-struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableRecord {
-    var id: Int64?
+public struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableRecord {
+    public var id: Int64?
     let url: URL
     var name: String
     var trackCount: Int
@@ -25,9 +25,9 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
 
     // MARK: - DB Configuration
 
-    static let databaseTableName = "folders"
+    public static let databaseTableName = "folders"
 
-    enum Columns {
+    public enum Columns {
         static let id = Column(CodingKeys.id)
         static let path = Column("path")
         static let name = Column(CodingKeys.name)
@@ -47,7 +47,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
 
     // MARK: - Codable
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(Int64.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
@@ -58,7 +58,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         url = URL(fileURLWithPath: path)
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(id, forKey: .id)
         try container.encode(name, forKey: .name)
@@ -70,7 +70,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
 
     // MARK: - FetchableRecord
 
-    init(row: Row) throws {
+    public init(row: Row) throws {
         id = row[Columns.id]
         name = row[Columns.name]
         trackCount = row[Columns.trackCount]
@@ -85,7 +85,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
 
     // MARK: - PersistableRecord
 
-    func encode(to container: inout PersistenceContainer) throws {
+    public func encode(to container: inout PersistenceContainer) throws {
         container[Columns.id] = id
         container[Columns.path] = url.path
         container[Columns.name] = name
@@ -97,7 +97,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
     }
 
     // Auto-incrementing id
-    mutating func didInsert(_ inserted: InsertionSuccess) {
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
     }
 
@@ -111,12 +111,12 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
 
     // MARK: - Hashable & Identifiable
 
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id ?? 0)
         hasher.combine(url)
     }
 
-    static func == (lhs: Folder, rhs: Folder) -> Bool {
+    public static func == (lhs: Folder, rhs: Folder) -> Bool {
         lhs.id == rhs.id && lhs.url == rhs.url
     }
 }

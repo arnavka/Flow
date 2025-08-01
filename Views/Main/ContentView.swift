@@ -105,15 +105,8 @@ struct ContentView: View {
                     .environmentObject(libraryManager)
             }
             .animation(.easeInOut(duration: 0.3), value: showingFullScreenPlayer)
-                        }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-                    .environmentObject(libraryManager)
-            }
-            .animation(.easeInOut(duration: 0.3), value: showingFullScreenPlayer)
     }
 
-    @ViewBuilder
     @ViewBuilder
     private var mainView: some View {
         if showingFullScreenPlayer {
@@ -197,13 +190,10 @@ struct ContentView: View {
             FoldersView(viewType: globalViewType)
         }
     }
-        }
-    }
 
     @ViewBuilder
     private var playerControls: some View {
-<<<<<<< HEAD
-        if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
+        
             PlayerView(
                 showingQueue: Binding(
                     get: { showingQueue },
@@ -225,7 +215,7 @@ struct ContentView: View {
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .animation(.easeInOut(duration: 0.3), value: libraryManager.folders.isEmpty)
         }
-    }
+    
 
     // MARK: - Toolbar
 

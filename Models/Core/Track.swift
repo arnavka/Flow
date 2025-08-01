@@ -1,15 +1,15 @@
 import Foundation
 import GRDB
 
-public class Track: Identifiable, ObservableObject, Equatable, Hashable, FetchableRecord, PersistableRecord {
+public class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, PersistableRecord, Hashable {
     public let id = UUID()
     var trackId: Int64?
     let url: URL
     
     // Core metadata for display
     var title: String
-    var artist: String
     var album: String
+    var artist: String
     var duration: Double
     
     // File properties
@@ -61,14 +61,6 @@ public class Track: Identifiable, ObservableObject, Equatable, Hashable, Fetchab
     // MARK: - DB Configuration
     public static let databaseTableName = "tracks"
 
-    static let columnMap: [String: Column] = [
-        "artist": Columns.artist,
-        "album": Columns.album,
-        "album_artist": Columns.albumArtist,
-        "composer": Columns.composer,
-        "genre": Columns.genre,
-        "year": Columns.year
-    ]
     public enum Columns {
         static let trackId = Column("id")
         static let folderId = Column("folder_id")
@@ -91,52 +83,57 @@ public class Track: Identifiable, ObservableObject, Equatable, Hashable, Fetchab
         static let albumId = Column("album_id")
         static let isDuplicate = Column("is_duplicate")
     }
+
+    static let columnMap: [String: Column] = [
+        "artist": Columns.artist,
+        "album": Columns.album,
+        "album_artist": Columns.albumArtist,
+        "composer": Columns.composer,
+        "genre": Columns.genre,
+        "year": Columns.year
+    ]
     
     // MARK: - FetchableRecord
-<<<<<<< HEAD
 
     required public init(row: Row) throws {
-=======
-    
-    init(row: Row) throws {
         // Extract path and create URL
         let path: String = row[Columns.path]
         self.url = URL(fileURLWithPath: path)
         self.format = row[Columns.format]
         
         // Core properties
->>>>>>> upstream/main
-        trackId = row[Columns.trackId]
-        folderId = row[Columns.folderId]
-        title = row[Columns.title]
-        artist = row[Columns.artist]
-        album = row[Columns.album]
-        composer = row[Columns.composer]
-        genre = row[Columns.genre]
-        year = row[Columns.year]
-        duration = row[Columns.duration]
-        dateAdded = row[Columns.dateAdded]
-        isFavorite = row[Columns.isFavorite]
-        playCount = row[Columns.playCount]
-        lastPlayedDate = row[Columns.lastPlayedDate]
+        self.trackId = row[Columns.trackId]
+        self.folderId = row[Columns.folderId]
+        self.title = row[Columns.title]
+        self.artist = row[Columns.artist]
+        self.album = row[Columns.album]
+        self.composer = row[Columns.composer]
+        self.genre = row[Columns.genre]
+        self.year = row[Columns.year]
+        self.duration = row[Columns.duration]
+        self.dateAdded = row[Columns.dateAdded]
+        self.isFavorite = row[Columns.isFavorite]
+        self.playCount = row[Columns.playCount]
+        self.lastPlayedDate = row[Columns.lastPlayedDate]
         
         // Navigation fields
-        albumArtist = row[Columns.albumArtist]
+        self.albumArtist = row[Columns.albumArtist]
         
         // Sorting fields
-        trackNumber = row[Columns.trackNumber]
-        discNumber = row[Columns.discNumber]
+        self.trackNumber = row[Columns.trackNumber]
+        self.discNumber = row[Columns.discNumber]
         
         // State
-        isDuplicate = row[Columns.isDuplicate] ?? false
+        self.isDuplicate = row[Columns.isDuplicate] ?? false
         
         // Album reference
-        albumId = row[Columns.albumId]
+        self.albumId = row[Columns.albumId]
         
-        isMetadataLoaded = true
+        self.isMetadataLoaded = true
     }
     
     // MARK: - PersistableRecord
+
     public func encode(to container: inout PersistenceContainer) throws {
         // Only encode the lightweight fields when saving
         container[Columns.trackId] = trackId
@@ -159,6 +156,7 @@ public class Track: Identifiable, ObservableObject, Equatable, Hashable, Fetchab
         container[Columns.discNumber] = discNumber
         container[Columns.albumId] = albumId
     }
+
     // Update if exists based on path
     public func didInsert(_ inserted: InsertionSuccess) {
         trackId = inserted.rowID
@@ -166,20 +164,21 @@ public class Track: Identifiable, ObservableObject, Equatable, Hashable, Fetchab
 
     // MARK: - Relationships
 
-    static let folder = belongsTo(Folder.self)
+    public static let folder = belongsTo(Folder.self)
     
-    var folder: QueryInterfaceRequest<Folder> {
+    public var folder: QueryInterfaceRequest<Folder> {
         request(for: Track.folder)
     }
     
     // MARK: - Equatable
+
     public static func == (lhs: Track, rhs: Track) -> Bool {
         lhs.id == rhs.id
     }
     
     // MARK: - Hashable
     
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 }
@@ -281,7 +280,7 @@ extension Track {
     var duplicateKey: String {
         let normalizedTitle = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedAlbum = album.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedYear = year.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedYear = year.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Round duration to nearest 2 seconds to handle slight variations
         let roundedDuration = Int((duration / 2.0).rounded()) * 2
@@ -314,14 +313,5 @@ extension Track {
                 .filter(FullTrack.Columns.trackId == trackId)
                 .fetchOne(db)
         }
-    }
-}
-
-// MARK: - Hashable Conformance
-
-extension Track: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        // Use the unique ID for hashing
-        hasher.combine(id)
     }
 }
