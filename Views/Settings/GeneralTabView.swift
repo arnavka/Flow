@@ -18,6 +18,14 @@ struct GeneralTabView: View {
 
     @AppStorage("showFoldersTab")
     private var showFoldersTab = false
+    
+    @AppStorage("discoverUpdateInterval")
+    private var discoverUpdateInterval: DiscoverUpdateInterval = .weekly
+
+    @AppStorage("discoverTrackCount")
+    private var discoverTrackCount: Int = 50
+    
+    @State private var initialDiscoverTrackCount: Int = 0
 
     @AppStorage("fullScreenPlayerBackground")
     private var fullScreenPlayerBackground: FullScreenBackgroundMode = .artworkBlur
@@ -109,7 +117,7 @@ struct GeneralTabView: View {
                     .help("Shows Folders tab within the main window to browse music directly from added folders")
             }
 
-            Section("Library Scanning") {
+            Section("Library") {
                 HStack {
                     Picker("Auto-scan library every", selection: $autoScanInterval) {
                         ForEach(AutoScanInterval.allCases, id: \.self) { interval in
@@ -119,6 +127,32 @@ struct GeneralTabView: View {
                     .help("Automatically scan for new music in the library on selected interval")
                     .pickerStyle(.menu)
                     .frame(maxWidth: .infinity)
+                }
+                
+                HStack {
+                    Picker("Refresh Discover every", selection: $discoverUpdateInterval) {
+                        ForEach(DiscoverUpdateInterval.allCases, id: \.self) { interval in
+                            Text(interval.displayName).tag(interval)
+                        }
+                    }
+                    .help("How often to refresh the Discover tracks list")
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity)
+                }
+
+                HStack {
+                    Text("Number of Discover tracks")
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Text("\(discoverTrackCount)")
+                            .font(.system(.body, design: .monospaced))
+                            .frame(minWidth: 40, alignment: .trailing)
+                            .foregroundColor(.primary)
+                        Stepper("", value: $discoverTrackCount, in: 1...200, step: 1)
+                            .labelsHidden()
+                            .fixedSize()
+                    }
+                    .help("Number of tracks to show in Discover (1-200)")
                 }
             }
         }
@@ -131,8 +165,17 @@ struct GeneralTabView: View {
             updateAppearance(newValue)
         }
         .onAppear {
-            // Apply the saved color mode when the view appears
             updateAppearance(colorMode)
+        }
+        .onAppear {
+            initialDiscoverTrackCount = discoverTrackCount
+        }
+        .onDisappear {
+            if discoverTrackCount != initialDiscoverTrackCount {
+                if let libraryManager = AppCoordinator.shared?.libraryManager {
+                    libraryManager.refreshDiscoverTracks()
+                }
+            }
         }
     }
 

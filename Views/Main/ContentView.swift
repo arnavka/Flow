@@ -105,92 +105,79 @@ struct ContentView: View {
                     .environmentObject(libraryManager)
             }
             .animation(.easeInOut(duration: 0.3), value: showingFullScreenPlayer)
+                        }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+                    .environmentObject(libraryManager)
+            }
+            .animation(.easeInOut(duration: 0.3), value: showingFullScreenPlayer)
     }
 
+    @ViewBuilder
     @ViewBuilder
     private var mainView: some View {
         if showingFullScreenPlayer {
-            fullScreenPlayerView
+            FullScreenPlayerView(
+                isPresented: $showingFullScreenPlayer,
+                showingQueue: $showingQueue
+            )
+            .environmentObject(playbackManager)
+            .environmentObject(playlistManager)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(.opacity.combined(with: .scale))
         } else {
-            normalAppView
-        }
-    }
+            VStack(spacing: 0) {
+                // Persistent Contextual Toolbar - always present when we have music
+                if !libraryManager.folders.isEmpty {
+                    ContextualToolbar(
+                        viewType: Binding(
+                            get: {
+                                if selectedTab == .home && homeShowingEntities {
+                                    return entityViewType
+                                }
+                                return globalViewType
+                            },
+                            set: { newValue in
+                                if selectedTab == .home && homeShowingEntities {
+                                    entityViewType = newValue
+                                } else {
+                                    globalViewType = newValue
+                                }
+                            }
+                        ),
+                        disableTableView: selectedTab == .home && homeShowingEntities
+                    )
+                    .frame(height: 40)
+                    Divider()
+                }
 
-    @ViewBuilder
-    private var fullScreenPlayerView: some View {
-        FullScreenPlayerView(
-            isPresented: $showingFullScreenPlayer,
-            showingQueue: $showingQueue
-        )
-        .environmentObject(playbackManager)
-        .environmentObject(playlistManager)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .transition(.opacity.combined(with: .scale))
-    }
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        // Main content
+                        mainContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-    @ViewBuilder
-    private var normalAppView: some View {
-        VStack(spacing: 0) {
-            contextualToolbar
-            mainContentArea
-            playerControls
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .transition(.opacity.combined(with: .scale))
-    }
-
-    @ViewBuilder
-    private var contextualToolbar: some View {
-        if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
-            ContextualToolbar(
-                viewType: Binding(
-                    get: {
-                        if selectedTab == .home && homeShowingEntities {
-                            return entityViewType
-                        }
-                        return globalViewType
-                    },
-                    set: { newValue in
-                        if selectedTab == .home && homeShowingEntities {
-                            entityViewType = newValue
-                        } else {
-                            globalViewType = newValue
+                        // Side panel (queue or track detail)
+                        if showingQueue {
+                            PlayQueueView(showingQueue: $showingQueue)
+                                .frame(width: max(geometry.size.width * 0.28, 320))
+                                .frame(maxHeight: .infinity)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        } else if showingTrackDetail, let track = detailTrack {
+                            TrackDetailView(track: track, onClose: hideTrackDetail)
+                                .frame(width: max(geometry.size.width * 0.28, 320))
+                                .frame(maxHeight: .infinity)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
-                ),
-                disableTableView: selectedTab == .home && homeShowingEntities
-            )
-            .frame(height: 40)
-            Divider()
-        }
-    }
-
-    // MARK: - Main Content Area
-
-    @ViewBuilder
-    private var mainContentArea: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Main content
-                mainContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                // Side panel (queue or track detail)
-                if showingQueue {
-                    PlayQueueView(showingQueue: $showingQueue)
-                        .frame(width: max(geometry.size.width * 0.28, 320))
-                        .frame(maxHeight: .infinity)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                } else if showingTrackDetail, let track = detailTrack {
-                    TrackDetailView(track: track, onClose: hideTrackDetail)
-                        .frame(width: max(geometry.size.width * 0.28, 320))
-                        .frame(maxHeight: .infinity)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
+                playerControls
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(.opacity.combined(with: .scale))
         }
     }
 
@@ -210,9 +197,12 @@ struct ContentView: View {
             FoldersView(viewType: globalViewType)
         }
     }
+        }
+    }
 
     @ViewBuilder
     private var playerControls: some View {
+<<<<<<< HEAD
         if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
             PlayerView(
                 showingQueue: Binding(
