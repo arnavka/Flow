@@ -19,6 +19,9 @@ struct GeneralTabView: View {
     @AppStorage("showFoldersTab")
     private var showFoldersTab = false
 
+    @AppStorage("fullScreenPlayerBackground")
+    private var fullScreenPlayerBackground: FullScreenBackgroundMode = .artworkBlur
+
     enum ColorMode: String, CaseIterable, TabbedItem {
         case light = "Light"
         case dark = "Dark"
@@ -36,6 +39,26 @@ struct GeneralTabView: View {
                 return "moon.fill"
             case .auto:
                 return "circle.lefthalf.filled"
+            }
+        }
+
+        var title: String { self.displayName }
+    }
+
+    enum FullScreenBackgroundMode: String, CaseIterable, TabbedItem {
+        case artworkBlur = "Artwork with Blur"
+        case solidBlack = "Solid Black"
+
+        var displayName: String {
+            self.rawValue
+        }
+
+        var icon: String {
+            switch self {
+            case .artworkBlur:
+                return "photo.fill"
+            case .solidBlack:
+                return "rectangle.fill"
             }
         }
 
@@ -69,6 +92,18 @@ struct GeneralTabView: View {
                     )
                     .frame(width: 200)
                 }
+
+                HStack {
+                    Text("Full-screen player background")
+                    Spacer()
+                    TabbedButtons(
+                        items: FullScreenBackgroundMode.allCases,
+                        selection: $fullScreenPlayerBackground,
+                        style: .flexible
+                    )
+                    .frame(width: 250)
+                }
+                .help("Choose the background style for the full-screen player view")
 
                 Toggle("Show folders tab in main window", isOn: $showFoldersTab)
                     .help("Shows Folders tab within the main window to browse music directly from added folders")

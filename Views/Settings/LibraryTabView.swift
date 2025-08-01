@@ -4,6 +4,7 @@ struct LibraryTabView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var showingRemoveFolderAlert = false
     @State private var showingResetConfirmation = false
+    @State private var showingBulkLyricsAlert = false
     @State private var selectedFolderIDs: Set<Int64> = []
     @State private var isSelectMode: Bool = false
     @State private var folderToRemove: Folder?
@@ -11,6 +12,7 @@ struct LibraryTabView: View {
     @State private var stableRefreshButtonState = false
     @State private var scanningStateTimer: Timer?
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var lyricsManager = LyricsManager()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,6 +60,16 @@ struct LibraryTabView: View {
             }
         } message: {
             Text("This will permanently remove all library data, including added folders, tracks, and playlists. This action cannot be undone.")
+        }
+        .alert("Fetch All Lyrics", isPresented: $showingBulkLyricsAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Fetch Lyrics", role: .none) {
+                Task {
+                    await lyricsManager.fetchAllLyricsForTracks(libraryManager.tracks)
+                }
+            }
+        } message: {
+            Text("This will download lyrics for all \(libraryManager.tracks.count) tracks in your library. This may take several minutes and requires an internet connection.")
         }
     }
 
@@ -207,6 +219,22 @@ struct LibraryTabView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+
+                Button(action: { showingBulkLyricsAlert = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Fetch All Lyrics")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .disabled(libraryManager.tracks.isEmpty)
 
                 Button(action: { showingResetConfirmation = true }) {
                     HStack(spacing: 6) {

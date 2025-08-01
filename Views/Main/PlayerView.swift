@@ -5,6 +5,7 @@ struct PlayerView: View {
     @EnvironmentObject var playbackManager: PlaybackManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @Binding var showingQueue: Bool
+    @Binding var showingFullScreenPlayer: Bool
     
     @Environment(\.scenePhase)
     var scenePhase
@@ -161,9 +162,10 @@ struct PlayerView: View {
     private var rightSection: some View {
         HStack(spacing: 12) {
             volumeControl
+            fullScreenButton
             queueButton
         }
-        .frame(width: 250, alignment: .trailing)
+        .frame(width: 280, alignment: .trailing)
     }
 
     // MARK: - Left Section Components
@@ -453,6 +455,27 @@ struct PlayerView: View {
         .disabled(isMuted)
     }
 
+    private var fullScreenButton: some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showingFullScreenPlayer = true
+            }
+        }) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(Color.secondary.opacity(0.1))
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .hoverEffect(scale: 1.1)
+        .help("Open Full Screen Player")
+        .disabled(playbackManager.currentTrack == nil)
+    }
+
     private var queueButton: some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.3)) {
@@ -715,9 +738,13 @@ extension View {
 #Preview {
     struct PreviewWrapper: View {
         @State private var showingQueue = false
+        @State private var showingFullScreenPlayer = false
 
         var body: some View {
-            PlayerView(showingQueue: $showingQueue)
+            PlayerView(
+                showingQueue: $showingQueue,
+                showingFullScreenPlayer: $showingFullScreenPlayer
+            )
                 .environmentObject({
                     let coordinator = AppCoordinator()
                     return coordinator.playbackManager

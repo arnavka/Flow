@@ -48,24 +48,8 @@ struct PlayQueueView: View {
 
     private var queueHeader: some View {
         ListHeader {
-            HStack(spacing: 12) {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showingQueue = false
-                        if let coordinator = AppCoordinator.shared {
-                            coordinator.isQueueVisible = showingQueue
-                        }
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                
-                Text("Play Queue")
-                    .headerTitleStyle()
-            }
+            Text("Play Queue")
+                .headerTitleStyle()
 
             Spacer()
 
