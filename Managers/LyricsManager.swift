@@ -7,7 +7,7 @@ public class LyricsManager: ObservableObject {
     @Published public var error: String?
     
     private var cancellables = Set<AnyCancellable>()
-    private let cacheDirectory: URL
+    public let cacheDirectory: URL
     
     public init() {
         // Create lyrics cache directory in app support

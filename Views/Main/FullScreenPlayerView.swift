@@ -222,21 +222,19 @@ struct FullScreenPlayerView: View {
                                 .frame(maxWidth: .infinity)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                    } else if lyricsManager.isLoading {
+                        Text("Loading lyrics...")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                            .frame(height: 32)
                     } else {
-                        // Show placeholder when no lyrics are available
-                        if lyricsManager.isLoading {
-                            Text("Loading lyrics...")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(.white.opacity(0.6))
-                                .multilineTextAlignment(.center)
-                                .frame(height: 32)
-                        } else {
-                            Text("No lyrics available")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(.white.opacity(0.6))
-                                .multilineTextAlignment(.center)
-                                .frame(height: 32)
-                        }
+                        LyricsNotFoundView(
+                            message: Self.noLyricsMessages.randomElement() ?? "No lyrics available.",
+                            onAddLyricsManually: {
+                                handleAddLyricsManually()
+                            }
+                        )
                     }
                 }
                 .padding(.horizontal, 24)
@@ -634,6 +632,59 @@ struct FullScreenPlayerView: View {
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
         return String(format: StringFormat.mmss, minutes, remainingSeconds)
+    }
+    
+    private static let noLyricsMessages = [
+        "Oops! The lyrics ghosted us just like your crush did.\nMaybe you can write them a love letter — or just add a .lrc file manually.",
+        "We searched everywhere — even under the soundwaves.\nStill no luck. Feel free to drop in a lyrics file.",
+        "Looks like the song is playing hide-and-seek with its lyrics.\nYou can win the game by adding them yourself.",
+        "This track is vibing in silence.\nChange that by uploading a lyrics file.",
+        "No lyrics today... even our AI couldn’t charm them out.\nMind giving it a nudge with a manual upload?",
+        "The lyrics took a break. Union rules, probably.\nYou can help fill in the gap by adding them yourself.",
+        "Well, this is awkward... the lyrics stood us up.\nCare to step in and upload them manually?",
+        "It's like the song forgot its own words.\nMaybe you remember them? Add the file and save the day.",
+        "The lyric search party came back empty-handed.\nHelp them out with a manual upload.",
+        "This song's got beats, but no words to speak.\nWant to give it a voice? Add the lyrics file.",
+        "Our lyric radar is officially broken.\nFeel free to go old-school and upload them yourself.",
+        "No lyrics here. Even the backup singers are silent.\nWhy not be the lead and add the file manually?",
+        "Nothing but echoes where lyrics should be.\nYou can fix that by uploading a lyrics file.",
+        "Turns out the internet doesn’t know this song either.\nBut you do. Add the lyrics manually if you’ve got them.",
+        "We tried everything short of summoning the lyrics.\nCare to save the effort and upload the file?",
+        "This song is apparently a mystery track.\nWant to help solve it? Add a lyrics file.",
+        "Lyrics not found. We even asked nicely.\nLooks like it’s manual upload time.",
+        "The lyrics are on vacation.\nYou could fill in while they’re gone.",
+        "We found the rhythm, but the words slipped through the cracks.\nPatch it up with a lyrics file.",
+        "Even the search engines gave us a shrug.\nTime for the manual hero move — add the file."
+    ]
+    
+    private func handleAddLyricsManually() {
+        guard let currentTrack = playbackManager.currentTrack else { return }
+        
+        LyricsFilePicker.present { url in
+            guard let sourceURL = url else { return }
+            
+            do {
+                let trackFileName = currentTrack.url.deletingPathExtension().lastPathComponent
+                let destinationURL = lyricsManager.cacheDirectory.appendingPathComponent("\(trackFileName).lrc")
+                
+                // Ensure the destination directory exists
+                try FileManager.default.createDirectory(at: lyricsManager.cacheDirectory, withIntermediateDirectories: true, attributes: nil)
+                
+                // Copy the file
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
+                }
+                try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                
+                print("Manual lyrics saved to: \(destinationURL.path)")
+                
+                // Reload lyrics
+                lyricsManager.loadLyrics(for: currentTrack)
+            } catch {
+                print("Failed to save or load manual lyrics: \(error.localizedDescription)")
+                // Optionally, show an alert to the user
+            }
+        }
     }
 }
 
