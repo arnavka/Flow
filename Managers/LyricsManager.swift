@@ -6,7 +6,7 @@ public class LyricsManager: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var error: String?
     
-    private var cancellables = Set<AnyCancellable>()
+    public var cancellables = Set<AnyCancellable>()
     public let cacheDirectory: URL
     
     public init() {
@@ -57,13 +57,16 @@ public class LyricsManager: ObservableObject {
                         print("🎵 LyricsManager: Search completed successfully")
                     }
                 },
-                receiveValue: { [weak self] lyrics in
-                    print("🎵 LyricsManager: Received lyrics with \(lyrics.count) lines")
-                    self?.currentLyrics = lyrics
-                    
-                    // Cache the lyrics if we got some
-                    if !lyrics.isEmpty {
+                receiveValue: { [weak self] lyricsArray in
+                    if let lyrics = lyricsArray.first {
+                        print("🎵 LyricsManager: Received lyrics with \(lyrics.count) lines")
+                        self?.currentLyrics = lyrics
+                        
+                        // Cache the lyrics if we got some
                         self?.cacheLyrics(lyrics, for: track)
+                    } else {
+                        print("🎵 LyricsManager: No lyrics found in search results.")
+                        self?.currentLyrics = nil
                     }
                 }
             )
@@ -72,7 +75,7 @@ public class LyricsManager: ObservableObject {
     
     // MARK: - Cache Management
     
-    private func cacheFileName(for track: Track) -> String {
+    public func cacheFileName(for track: Track) -> String {
         // Create a safe filename from track info
         let safeTitle = track.title.replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "\\", with: "_")
@@ -112,7 +115,7 @@ public class LyricsManager: ObservableObject {
         }
     }
     
-    public func loadCachedLyrics(for track: Track) -> Lyrics? {
+    func loadCachedLyrics(for track: Track) -> Lyrics? {
         let fileName = cacheFileName(for: track)
         let fileURL = cacheDirectory.appendingPathComponent(fileName)
         
@@ -131,7 +134,12 @@ public class LyricsManager: ObservableObject {
         }
     }
     
-    private func convertLyricsToLRC(_ lyrics: Lyrics) -> String {
+    // Public wrapper for loading cached lyrics
+    public func getCachedLyrics(for track: Track) -> Lyrics? {
+        return loadCachedLyrics(for: track)
+    }
+    
+    public func convertLyricsToLRC(_ lyrics: Lyrics) -> String {
         var lrcContent = ""
         
         // Add metadata if available
@@ -149,10 +157,17 @@ public class LyricsManager: ObservableObject {
     
     // MARK: - Network Fetching
     
-    private func searchLyrics(request: LyricsSearchRequest) -> AnyPublisher<Lyrics, Error> {
+    public func searchLyrics(request: LyricsSearchRequest) -> AnyPublisher<[Lyrics], Error> {
         print("🎵 LyricsManager: Starting LRCLIB search for '\(request.searchQuery)'")
         let lrclibSource = LRCLibSource()
         return lrclibSource.searchLyrics(request: request)
+            .map { lyrics in
+                if lyrics.isEmpty {
+                    return []
+                } else {
+                    return lyrics // Return the array directly
+                }
+            }
             .mapError { error in
                 print("🎵 LyricsManager: LRCLIB search failed: \(error)")
                 return error
@@ -176,8 +191,8 @@ public class LyricsManager: ObservableObject {
             let request = LyricsSearchRequest(title: track.title, artist: track.artist, duration: track.duration)
             
             do {
-                let lyrics = try await searchLyrics(request: request).async()
-                if !lyrics.isEmpty {
+                let lyricsArray = try await searchLyrics(request: request).async()
+                if let lyrics = lyricsArray.first {
                     cacheLyrics(lyrics, for: track)
                     print("🎵 LyricsManager: Successfully cached lyrics for '\(track.title)'")
                 }
@@ -270,7 +285,7 @@ public enum LyricsError: LocalizedError {
 // MARK: - Lyrics Source Protocol
 
 public protocol LyricsSource {
-    func searchLyrics(request: LyricsSearchRequest) -> AnyPublisher<Lyrics, Error>
+    func searchLyrics(request: LyricsSearchRequest) -> AnyPublisher<[Lyrics], Error>
 }
 
 // MARK: - LRCLIB Source
@@ -280,10 +295,10 @@ public class LRCLibSource: LyricsSource {
     
     public init() {}
     
-    public func searchLyrics(request: LyricsSearchRequest) -> AnyPublisher<Lyrics, Error> {
+    public func searchLyrics(request: LyricsSearchRequest) -> AnyPublisher<[Lyrics], Error> {
         // Try search first as it's more reliable
         return searchLyricsByKeyword(request: request)
-            .catch { error -> AnyPublisher<Lyrics, Error> in
+            .catch { error -> AnyPublisher<[Lyrics], Error> in
                 print("🎵 LRCLIB: Search failed, trying exact match with duration")
                 // If search fails and we have duration, try exact match
                 if let duration = request.duration {
@@ -295,20 +310,20 @@ public class LRCLibSource: LyricsSource {
             .eraseToAnyPublisher()
     }
     
-    private func getLyricsWithDuration(request: LyricsSearchRequest, duration: TimeInterval) -> AnyPublisher<Lyrics, Error> {
+    private func getLyricsWithDuration(request: LyricsSearchRequest, duration: TimeInterval) -> AnyPublisher<[Lyrics], Error> {
         let urlString = "\(baseURL)/get"
         let parameters = [
             "track_name": request.title,
-            "artist_name": request.artist,
-            "album_name": "Unknown Album", // We don't have album info, use placeholder
+            "artist_name": request.artist ?? "", // Provide empty string if artist is nil
+            "album_name": request.album ?? "", // Provide empty string if album is nil
             "duration": String(Int(duration))
         ]
         
         return makeRequest(url: urlString, parameters: parameters)
-            .map { data -> Lyrics in
-                return self.parseLRCLibResponse(data: data)
+            .map { data -> [Lyrics] in
+                return [self.parseLRCLibResponse(data: data)] // Wrap single result in array
             }
-            .catch { error -> AnyPublisher<Lyrics, Error> in
+            .catch { error -> AnyPublisher<[Lyrics], Error> in
                 print("🎵 LRCLIB: Exact match failed, trying search: \(error)")
                 // If exact match fails, try search
                 return self.searchLyricsByKeyword(request: request)
@@ -316,16 +331,16 @@ public class LRCLibSource: LyricsSource {
             .eraseToAnyPublisher()
     }
     
-    private func searchLyricsByKeyword(request: LyricsSearchRequest) -> AnyPublisher<Lyrics, Error> {
+    private func searchLyricsByKeyword(request: LyricsSearchRequest) -> AnyPublisher<[Lyrics], Error> {
         let urlString = "\(baseURL)/search"
         let parameters = [
-            "q": "\(request.title) \(request.artist)" // Use the 'q' parameter for broader search
+            "q": "\(request.title) \(request.artist ?? "")" // Handle optional artist
         ]
         
         print("🎵 LRCLIB: Searching with query: '\(parameters["q"] ?? "")'")
         
         return makeRequest(url: urlString, parameters: parameters)
-            .map { data -> Lyrics in
+            .map { data -> [Lyrics] in
                 return self.parseLRCLibSearchResponse(data: data, request: request)
             }
             .eraseToAnyPublisher()
@@ -353,45 +368,36 @@ public class LRCLibSource: LyricsSource {
         return LRCParser.parseFromString(syncedLyrics)
     }
     
-    private func parseLRCLibSearchResponse(data: Data, request: LyricsSearchRequest) -> Lyrics {
+    private func parseLRCLibSearchResponse(data: Data, request: LyricsSearchRequest) -> [Lyrics] {
         guard let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             print("🎵 LRCLIB: Failed to parse search response")
-            return Lyrics()
+            return []
         }
         
         print("🎵 LRCLIB: Found \(jsonArray.count) search results")
         
-        // Find the best match
-        for (index, result) in jsonArray.enumerated() {
-            guard let trackName = result["trackName"] as? String,
-                  let artistName = result["artistName"] as? String else {
-                print("🎵 LRCLIB: Skipping result \(index) - missing trackName or artistName")
-                continue
-            }
-            
-            // Check if syncedLyrics exists and is not empty
+        var parsedLyrics: [Lyrics] = []
+        for result in jsonArray {
             guard let syncedLyrics = result["syncedLyrics"] as? String, !syncedLyrics.isEmpty else {
-                print("🎵 LRCLIB: Result \(index) has no syncedLyrics: '\(trackName)' by '\(artistName)'")
                 continue
             }
             
-            print("🎵 LRCLIB: Checking result \(index): '\(trackName)' by '\(artistName)' (lyrics length: \(syncedLyrics.count))")
-            
-            // More flexible matching logic
-            let trackMatch = trackName.lowercased().contains(request.title.lowercased()) ||
-                           request.title.lowercased().contains(trackName.lowercased())
-            let artistMatch = artistName.lowercased().contains(request.artist.lowercased()) ||
-                            request.artist.lowercased().contains(artistName.lowercased())
-            
-            if trackMatch && artistMatch {
-                print("🎵 LRCLIB: Found good match: '\(trackName)' by '\(artistName)'")
-                print("🎵 LRCLIB: Parsing syncedLyrics (first 100 chars): \(String(syncedLyrics.prefix(100)))")
-                return LRCParser.parseFromString(syncedLyrics)
+            var lyrics = LRCParser.parseFromString(syncedLyrics) // Changed to var
+            // Add metadata for display in the list
+            if let trackName = result["trackName"] as? String {
+                lyrics.metadata["ti"] = trackName
             }
+            if let artistName = result["artistName"] as? String {
+                lyrics.metadata["ar"] = artistName
+            }
+            if let albumName = result["albumName"] as? String {
+                lyrics.metadata["al"] = albumName
+            }
+            parsedLyrics.append(lyrics)
         }
         
-        print("🎵 LRCLIB: No good match found in search results")
-        return Lyrics()
+        print("🎵 LRCLIB: Parsed \(parsedLyrics.count) valid lyrics from search results")
+        return parsedLyrics
     }
 }
 

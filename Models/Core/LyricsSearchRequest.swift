@@ -2,27 +2,31 @@ import Foundation
 
 public struct LyricsSearchRequest: Equatable {
     public var title: String
-    public var artist: String
+    public var artist: String? // Make artist optional
+    public var album: String?
     public var duration: TimeInterval?
     public var limit: Int
     
-    public init(title: String, artist: String, duration: TimeInterval? = nil, limit: Int = 5) {
+    public init(title: String, artist: String? = nil, album: String? = nil, duration: TimeInterval? = nil, limit: Int = 5) {
         self.title = title
-        self.artist = artist
+        self.artist = artist // Initialize optional artist
+        self.album = album
         self.duration = duration
         self.limit = limit
     }
     
     public var searchQuery: String {
-        return "\(title) \(artist)".trimmingCharacters(in: .whitespacesAndNewlines)
+        // Include artist only if it exists
+        let artistPart = artist.map { " \($0)" } ?? ""
+        return "\(title)\(artistPart)".trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     public var normalizedTitle: String {
         return title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    public var normalizedArtist: String {
-        return artist.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    public var normalizedArtist: String? { // Make normalizedArtist optional
+        return artist?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

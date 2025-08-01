@@ -37,6 +37,7 @@ struct FullScreenPlayerView: View {
     // Background setting
     @AppStorage("fullScreenPlayerBackground")
     private var backgroundMode: FullScreenBackgroundMode = .artworkBlur
+    @State private var showingLyricsSearchModal: Bool = false
     
     var body: some View {
             ZStack(alignment: .topLeading) {
@@ -241,12 +242,48 @@ struct FullScreenPlayerView: View {
                             .multilineTextAlignment(.center)
                             .frame(height: 32)
                     } else { // No lyrics available and not loading
-                        LyricsNotFoundView(
-                            message: noLyricsFallbackMessage,
-                            onAddLyricsManually: {
-                                handleAddLyricsManually()
+                        VStack(spacing: 15) {
+                            Text(noLyricsFallbackMessage)
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.white.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                            
+                            HStack(spacing: 15) {
+                                Button(action: handleAddLyricsManually) {
+                                    Text("Add Lyrics Manually")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
+                                        .background(Capsule().fill(Color.blue))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                
+                                Button {
+                                    showingLyricsSearchModal = true
+                                } label: {
+                                    Text("Search Online")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
+                                        .background(Capsule().fill(Color.orange))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .sheet(isPresented: $showingLyricsSearchModal) {
+                                    if let currentTrack = playbackManager.currentTrack {
+                                        LyricsSearchModalView(
+                                            currentTitle: currentTrack.title,
+                                            currentArtist: currentTrack.artist,
+                                            currentAlbum: currentTrack.album as String?
+                                        )
+                                        .environmentObject(lyricsManager)
+                                        .environmentObject(playbackManager)
+                                    }
+                                }
                             }
-                        )
+                        }
                     }
                 }
                 .padding(.horizontal, 24)
