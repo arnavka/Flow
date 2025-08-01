@@ -31,6 +31,8 @@ struct FullScreenPlayerView: View {
     // Lyrics state
     @StateObject private var lyricsManager = LyricsManager()
     @State private var currentLyricID: UUID?
+    @State private var noLyricsFallbackMessage: String = ""
+    @State private var showFullLyrics: Bool = false
     
     // Background setting
     @AppStorage("fullScreenPlayerBackground")
@@ -50,24 +52,28 @@ struct FullScreenPlayerView: View {
                             Spacer()
                             
                             // Artwork section
-                            artworkSection
-                                .frame(maxHeight: 300)
-                            
-                            Spacer()
-                            
-                            // Extra space to move lyrics down
-                            Spacer()
-                                .frame(height: 40)
+                            if !showFullLyrics {
+                                artworkSection
+                                    .frame(maxHeight: 300)
+                                
+                                Spacer()
+                                
+                                // Extra space to move lyrics down
+                                Spacer()
+                                    .frame(height: 40)
+                            }
                             
                             // Lyrics section
                             lyricsSection
-                                .frame(maxHeight: 120)
-                            
-                            Spacer()
+                                .frame(maxHeight: showFullLyrics ? .infinity : 120)
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        showFullLyrics.toggle()
+                                    }
+                                }
                             
                             // Controls section
                             controlsSection
-                                .frame(maxHeight: 200)
                             
                             Spacer()
                         }
@@ -93,6 +99,8 @@ struct FullScreenPlayerView: View {
             // Load lyrics for current track when view appears
             if let track = playbackManager.currentTrack {
                 lyricsManager.loadLyrics(for: track)
+                // Generate a new fallback message when a new track loads
+                noLyricsFallbackMessage = Self.noLyricsMessages.randomElement() ?? "No lyrics available."
             }
         }
         .onChange(of: playbackManager.isPlaying) { _, isPlaying in
@@ -106,6 +114,8 @@ struct FullScreenPlayerView: View {
             syncDisplayTime()
             if let track = playbackManager.currentTrack {
                 lyricsManager.loadLyrics(for: track)
+                // Generate a new fallback message when a new track loads
+                noLyricsFallbackMessage = Self.noLyricsMessages.randomElement() ?? "No lyrics available."
             }
             if playbackManager.isPlaying && scenePhase == .active {
                 startUITimer()
@@ -164,11 +174,13 @@ struct FullScreenPlayerView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     
-                    Text(track.artist.isEmpty ? "Unknown Artist" : track.artist)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    if !showFullLyrics {
+                        Text(track.artist.isEmpty ? "Unknown Artist" : track.artist)
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
             }
             .padding(.horizontal, 24)
@@ -228,9 +240,9 @@ struct FullScreenPlayerView: View {
                             .foregroundColor(.white.opacity(0.6))
                             .multilineTextAlignment(.center)
                             .frame(height: 32)
-                    } else {
+                    } else { // No lyrics available and not loading
                         LyricsNotFoundView(
-                            message: Self.noLyricsMessages.randomElement() ?? "No lyrics available.",
+                            message: noLyricsFallbackMessage,
                             onAddLyricsManually: {
                                 handleAddLyricsManually()
                             }
@@ -251,6 +263,16 @@ struct FullScreenPlayerView: View {
                     }
                 }
             }
+            .onChange(of: showFullLyrics) { _, _ in
+                // When showFullLyrics changes, re-scroll to center the current lyric
+                if let lyrics = lyricsManager.currentLyrics, let id = lyrics.currentLine(at: displayTime)?.id {
+                    DispatchQueue.main.async {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            proxy.scrollTo(id, anchor: .center)
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -258,11 +280,11 @@ struct FullScreenPlayerView: View {
     
     private var controlsSection: some View {
         VStack(spacing: 16) {
-            // Progress bar (moved down even more)
+            // Progress bar
             progressSection
-                .padding(.top, 100)
+                .padding(.top, 20) // Reduced top padding
             
-            // All controls properly arranged (moved up)
+            // All controls properly arranged
             HStack(spacing: 0) {
                 // Volume controls (left side)
                 HStack(spacing: 12) {
@@ -678,8 +700,15 @@ struct FullScreenPlayerView: View {
                 
                 print("Manual lyrics saved to: \(destinationURL.path)")
                 
-                // Reload lyrics
-                lyricsManager.loadLyrics(for: currentTrack)
+                // Load lyrics directly from the saved file
+                if let loadedLyrics = lyricsManager.loadCachedLyrics(for: currentTrack) {
+                    lyricsManager.currentLyrics = loadedLyrics
+                    print("Manual lyrics loaded successfully.")
+                } else {
+                    print("Failed to load manual lyrics from cache after saving.")
+                    // Fallback to trying to load from network if cache load fails (shouldn't happen)
+                    lyricsManager.loadLyrics(for: currentTrack)
+                }
             } catch {
                 print("Failed to save or load manual lyrics: \(error.localizedDescription)")
                 // Optionally, show an alert to the user

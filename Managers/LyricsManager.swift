@@ -112,7 +112,7 @@ public class LyricsManager: ObservableObject {
         }
     }
     
-    private func loadCachedLyrics(for track: Track) -> Lyrics? {
+    public func loadCachedLyrics(for track: Track) -> Lyrics? {
         let fileName = cacheFileName(for: track)
         let fileURL = cacheDirectory.appendingPathComponent(fileName)
         

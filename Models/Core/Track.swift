@@ -1,8 +1,8 @@
 import Foundation
 import GRDB
 
-class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, PersistableRecord {
-    let id = UUID()
+public class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, PersistableRecord {
+    public let id = UUID()
     var trackId: Int64?
     let url: URL
 
@@ -84,7 +84,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
 
     // MARK: - DB Configuration
 
-    static let databaseTableName = "tracks"
+    public static let databaseTableName = "tracks"
 
     static let columnMap: [String: Column] = [
         "artist": Columns.artist,
@@ -95,7 +95,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         "year": Columns.year
     ]
 
-    enum Columns {
+    public enum Columns {
         static let trackId = Column("id")
         static let folderId = Column("folder_id")
         static let path = Column("path")
@@ -144,7 +144,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
 
     // MARK: - FetchableRecord
 
-    required init(row: Row) throws {
+    required public init(row: Row) throws {
         trackId = row[Columns.trackId]
         folderId = row[Columns.folderId]
 
@@ -203,7 +203,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
 
     // MARK: - PersistableRecord
 
-    func encode(to container: inout PersistenceContainer) throws {
+    public func encode(to container: inout PersistenceContainer) throws {
         container[Columns.trackId] = trackId
         container[Columns.folderId] = folderId
         container[Columns.path] = url.path
@@ -253,7 +253,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     }
 
     // Update if exists based on path
-    func didInsert(_ inserted: InsertionSuccess) {
+    public func didInsert(_ inserted: InsertionSuccess) {
         trackId = inserted.rowID
     }
 
@@ -279,7 +279,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
 
     // MARK: - Equatable
 
-    static func == (lhs: Track, rhs: Track) -> Bool {
+    public static func == (lhs: Track, rhs: Track) -> Bool {
         lhs.id == rhs.id
     }
 
@@ -366,7 +366,7 @@ extension Track {
 // MARK: - Hashable Conformance
 
 extension Track: Hashable {
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         // Use the unique ID for hashing
         hasher.combine(id)
     }
